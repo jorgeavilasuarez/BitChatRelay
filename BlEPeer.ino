@@ -59,7 +59,7 @@ class ServerCallbacks : public NimBLEServerCallbacks {
     LOG("BLE client disconnected. Active connections: %d\n", pServer->getConnectedCount());
     NimBLEDevice::getAdvertising()->start();
   }
-};
+} serverCallbacks;
 
 /**
  * @class CharacteristicCallbacks
@@ -72,6 +72,7 @@ class CharacteristicCallbacks : public NimBLECharacteristicCallbacks {
     if (pCharacteristic->getLength() > 0) {
       const uint8_t* data = pCharacteristic->getValue();
       size_t length = pCharacteristic->getLength();
+      // Forward the received data to the mesh network.
       zh_network_send(NULL, data, length);
       pCharacteristic->setValue(data, length);
       auto clientHandles = NimBLEDevice::getServer()->getPeerDevices();
@@ -82,7 +83,7 @@ class CharacteristicCallbacks : public NimBLECharacteristicCallbacks {
       }
     }
   }
-};
+} chrCallbacks;
 
 // =================================================================
 // =================== EVENT HANDLERS ==============================
@@ -97,11 +98,13 @@ void onZhNetworkEvent(void* arg, esp_event_base_t event_base, int32_t event_id, 
 
     LOG("ZHNetwork Rx: %d bytes from MAC " MACSTR "\n", zhRecvData->data_len, MAC2STR(zhRecvData->mac_addr));
 
+#ifdef ENABLED_BLE
     // Update the characteristic's value and notify BLE clients.
     if (pBleCharacteristic != nullptr) {
       pBleCharacteristic->setValue(zhRecvData->data, zhRecvData->data_len);
-      pBleCharacteristic->notify(true);  // 'true' to send a notification, not an indication.
+      pBleCharacteristic->notify();  // 'true' to send a notification, not an indication.
     }
+#endif
 
     // Important: Free the memory of the received data.
     heap_caps_free(zhRecvData->data);
@@ -159,7 +162,7 @@ void initBLE() {
     LOG("Error: Could not create BLE server.\n");
     return;
   }
-  pBleServer->setCallbacks(new ServerCallbacks());  // Anonymous instance, managed by the library
+  pBleServer->setCallbacks(&serverCallbacks);
 
   // Create the BLE service
   pBleService = pBleServer->createService(SERVICE_UUID_BITCHAT);
@@ -176,7 +179,7 @@ void initBLE() {
     LOG("Error: Could not create BLE characteristic.\n");
     return;
   }
-  pBleCharacteristic->setCallbacks(new CharacteristicCallbacks());  // Anonymous instance
+  pBleCharacteristic->setCallbacks(&chrCallbacks);
 
   // Start the service and advertising
   pBleService->start();
