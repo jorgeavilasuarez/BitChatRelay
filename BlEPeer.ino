@@ -102,7 +102,7 @@ void onZhNetworkEvent(void* arg, esp_event_base_t event_base, int32_t event_id, 
     // Update the characteristic's value and notify BLE clients.
     if (pBleCharacteristic != nullptr) {
       pBleCharacteristic->setValue(zhRecvData->data, zhRecvData->data_len);
-      pBleCharacteristic->notify();  // 'true' to send a notification, not an indication.
+      pBleCharacteristic->notify();
     }
 #endif
 
@@ -213,8 +213,5 @@ void setup() {
 }
 
 void loop() {
-  // The program is event-driven, so no code is needed in the loop.
-  // Low-power logic could be added here if needed.
-  // A small delay prevents the watchdog from triggering in an empty loop.
-  delay(2000);
+   // Nothing here – all handled by events
 }
